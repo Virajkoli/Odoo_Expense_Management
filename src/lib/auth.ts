@@ -1,7 +1,7 @@
-import { NextAuthOptions } from "next-auth"
-import CredentialsProvider from "next-auth/providers/credentials"
-import bcrypt from "bcryptjs"
-import { prisma } from "@/lib/prisma"
+import { NextAuthOptions } from "next-auth";
+import CredentialsProvider from "next-auth/providers/credentials";
+import bcrypt from "bcryptjs";
+import { prisma } from "@/lib/prisma";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -9,33 +9,33 @@ export const authOptions: NextAuthOptions = {
       name: "Credentials",
       credentials: {
         email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" }
+        password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
-          throw new Error("Invalid credentials")
+          throw new Error("Invalid credentials");
         }
 
         const user = await prisma.user.findUnique({
           where: {
-            email: credentials.email
+            email: credentials.email,
           },
           include: {
-            company: true
-          }
-        })
+            company: true,
+          },
+        });
 
         if (!user || !user.password) {
-          throw new Error("Invalid credentials")
+          throw new Error("Invalid credentials");
         }
 
         const isPasswordValid = await bcrypt.compare(
           credentials.password,
           user.password
-        )
+        );
 
         if (!isPasswordValid) {
-          throw new Error("Invalid credentials")
+          throw new Error("Invalid credentials");
         }
 
         return {
@@ -45,31 +45,31 @@ export const authOptions: NextAuthOptions = {
           role: user.role,
           companyId: user.companyId,
           companyCurrency: user.company.currency,
-        }
-      }
-    })
+        };
+      },
+    }),
   ],
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.role = user.role
-        token.companyId = user.companyId
-        token.companyCurrency = user.companyCurrency
+        token.role = user.role;
+        token.companyId = user.companyId;
+        token.companyCurrency = user.companyCurrency;
       }
-      return token
+      return token;
     },
     async session({ session, token }) {
       if (session?.user) {
-        session.user.id = token.sub!
-        session.user.role = token.role as string
-        session.user.companyId = token.companyId as string
-        session.user.companyCurrency = token.companyCurrency as string
+        session.user.id = token.sub!;
+        session.user.role = token.role as string;
+        session.user.companyId = token.companyId as string;
+        session.user.companyCurrency = token.companyCurrency as string;
       }
-      return session
+      return session;
     },
     async signOut() {
-      return true
-    }
+      return true;
+    },
   },
   pages: {
     signIn: "/auth/signin",
@@ -78,10 +78,10 @@ export const authOptions: NextAuthOptions = {
   events: {
     async signOut() {
       // Perform any cleanup here if needed
-    }
+    },
   },
   session: {
     strategy: "jwt",
   },
   secret: process.env.NEXTAUTH_SECRET,
-}
+};
