@@ -66,10 +66,19 @@ export const authOptions: NextAuthOptions = {
         session.user.companyCurrency = token.companyCurrency as string
       }
       return session
+    },
+    async signOut() {
+      return true
     }
   },
   pages: {
     signIn: "/auth/signin",
+    signOut: "/auth/signin",
+  },
+  events: {
+    async signOut() {
+      // Perform any cleanup here if needed
+    }
   },
   session: {
     strategy: "jwt",

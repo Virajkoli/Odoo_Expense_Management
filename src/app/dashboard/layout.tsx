@@ -86,7 +86,10 @@ export default function DashboardLayout({
           {/* Sign out */}
           <div className="border-t p-3">
             <button
-              onClick={() => signOut()}
+              onClick={() => signOut({ 
+                callbackUrl: '/auth/signin',
+                redirect: true 
+              })}
               className="group flex w-full items-center px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-100"
             >
               <LogOut className="mr-3 h-5 w-5 text-gray-400 group-hover:text-gray-500" />
