@@ -232,3 +232,75 @@ export async function PATCH(req: NextRequest) {
     )
   }
 }
+
+// DELETE - Delete approval rule
+export async function DELETE(req: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions)
+
+    if (!session?.user) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      )
+    }
+
+    if (session.user.role !== 'ADMIN') {
+      return NextResponse.json(
+        { error: "Forbidden - Only admins can delete approval rules" },
+        { status: 403 }
+      )
+    }
+
+    const { searchParams } = new URL(req.url)
+    const id = searchParams.get('id')
+
+    if (!id) {
+      return NextResponse.json(
+        { error: "Rule ID is required" },
+        { status: 400 }
+      )
+    }
+
+    // Check if rule exists and belongs to user's company
+    const rule = await prisma.approvalRule.findUnique({
+      where: { id },
+    })
+
+    if (!rule) {
+      return NextResponse.json(
+        { error: "Rule not found" },
+        { status: 404 }
+      )
+    }
+
+    if (rule.companyId !== session.user.companyId) {
+      return NextResponse.json(
+        { error: "Forbidden - Cannot delete rules from other companies" },
+        { status: 403 }
+      )
+    }
+
+    // Delete approvers first (cascade should handle this, but being explicit)
+    await prisma.approvalRuleApprover.deleteMany({
+      where: {
+        approvalRuleId: id,
+      },
+    })
+
+    // Delete the rule
+    await prisma.approvalRule.delete({
+      where: { id },
+    })
+
+    return NextResponse.json({ 
+      message: "Approval rule deleted successfully" 
+    })
+  } catch (error) {
+    console.error("Error deleting approval rule:", error)
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    )
+  }
+}

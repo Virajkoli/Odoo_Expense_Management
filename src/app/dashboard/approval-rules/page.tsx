@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import axios from 'axios'
 import toast from 'react-hot-toast'
-import { Plus, Edit, Trash2, ToggleLeft, ToggleRight } from 'lucide-react'
+import { Plus, Edit, Trash2, ToggleLeft, ToggleRight, GripVertical, ArrowUp, ArrowDown } from 'lucide-react'
 
 export default function ApprovalRulesPage() {
   const { data: session } = useSession()
@@ -42,6 +42,31 @@ export default function ApprovalRulesPage() {
       toast.error('Failed to update rule')
     },
   })
+
+  const deleteRuleMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { data } = await axios.delete(`/api/approval-rules?id=${id}`)
+      return data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['approval-rules'] })
+      toast.success('Rule deleted successfully')
+    },
+    onError: () => {
+      toast.error('Failed to delete rule')
+    },
+  })
+
+  const handleDeleteRule = (rule: any) => {
+    if (rule.isActive) {
+      toast.error('Cannot delete an active rule. Please deactivate it first.')
+      return
+    }
+
+    if (confirm(`Are you sure you want to delete the rule "${rule.name}"? This action cannot be undone.`)) {
+      deleteRuleMutation.mutate(rule.id)
+    }
+  }
 
   const managers = users?.filter((u: any) => u.role === 'MANAGER' || u.role === 'ADMIN') || []
 
@@ -121,21 +146,33 @@ export default function ApprovalRulesPage() {
                       <span>Sequence: {rule.sequence}</span>
                     </div>
                     <div className="mt-3">
-                      <p className="text-sm font-medium text-gray-700">Approvers:</p>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {rule.approvers.map((approver: any) => (
-                          <span
-                            key={approver.id}
-                            className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
-                              approver.isSpecialApprover
-                                ? 'bg-purple-100 text-purple-800 border border-purple-300'
-                                : 'bg-gray-100 text-gray-800'
-                            }`}
-                          >
-                            {approver.user.name}
-                            {approver.isSpecialApprover && ' ⭐'}
-                          </span>
-                        ))}
+                      <p className="text-sm font-medium text-gray-700">Approval Sequence:</p>
+                      <div className="mt-2 space-y-1">
+                        {rule.approvers
+                          .sort((a: any, b: any) => a.sequence - b.sequence)
+                          .map((approver: any, index: number) => (
+                            <div
+                              key={approver.id}
+                              className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg"
+                            >
+                              <span className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-800 text-xs font-bold">
+                                {approver.sequence}
+                              </span>
+                              <span className={`text-sm ${
+                                approver.isSpecialApprover
+                                  ? 'font-semibold text-purple-700'
+                                  : 'text-gray-700'
+                              }`}>
+                                {approver.user.name}
+                              </span>
+                              <span className="text-xs text-gray-500">({approver.user.role})</span>
+                              {approver.isSpecialApprover && (
+                                <span className="ml-auto text-xs bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full">
+                                  ⭐ Special
+                                </span>
+                              )}
+                            </div>
+                          ))}
                       </div>
                     </div>
                   </div>
@@ -155,6 +192,18 @@ export default function ApprovalRulesPage() {
                       ) : (
                         <ToggleLeft className="h-6 w-6" />
                       )}
+                    </button>
+                    <button
+                      onClick={() => handleDeleteRule(rule)}
+                      disabled={deleteRuleMutation.isPending}
+                      className={`p-2 hover:text-red-600 transition-colors ${
+                        rule.isActive 
+                          ? 'text-gray-300 cursor-not-allowed' 
+                          : 'text-gray-400'
+                      }`}
+                      title={rule.isActive ? 'Deactivate rule before deleting' : 'Delete rule'}
+                    >
+                      <Trash2 className="h-5 w-5" />
                     </button>
                   </div>
                 </div>
@@ -200,11 +249,23 @@ function ApprovalRuleModal({
     approvers: rule?.approvers || [],
   })
 
-  const [selectedApprovers, setSelectedApprovers] = useState<string[]>(
-    rule?.approvers?.map((a: any) => a.userId) || []
-  )
-  const [specialApprovers, setSpecialApprovers] = useState<string[]>(
-    rule?.approvers?.filter((a: any) => a.isSpecialApprover).map((a: any) => a.userId) || []
+  // Store approvers with their sequences in order
+  const [approversList, setApproversList] = useState<Array<{
+    userId: string
+    userName: string
+    userRole: string
+    isSpecialApprover: boolean
+    sequence: number
+  }>>(
+    rule?.approvers
+      ?.sort((a: any, b: any) => a.sequence - b.sequence)
+      .map((a: any, index: number) => ({
+        userId: a.userId,
+        userName: a.user.name,
+        userRole: a.user.role,
+        isSpecialApprover: a.isSpecialApprover,
+        sequence: index + 1,
+      })) || []
   )
 
   const createMutation = useMutation({
@@ -224,10 +285,11 @@ function ApprovalRuleModal({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
 
-    const approversData = selectedApprovers.map((userId, index) => ({
-      userId,
-      isSpecialApprover: specialApprovers.includes(userId),
-      sequence: index + 1,
+    // Use the approversList with their assigned sequences
+    const approversData = approversList.map((approver) => ({
+      userId: approver.userId,
+      isSpecialApprover: approver.isSpecialApprover,
+      sequence: approver.sequence,
     }))
 
     createMutation.mutate({
@@ -236,17 +298,60 @@ function ApprovalRuleModal({
     })
   }
 
-  const toggleApprover = (userId: string) => {
-    setSelectedApprovers((prev) =>
-      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
-    )
+  const addApprover = (userId: string) => {
+    const manager = managers.find((m: any) => m.id === userId)
+    if (!manager) return
+
+    const newSequence = approversList.length + 1
+    setApproversList([
+      ...approversList,
+      {
+        userId: manager.id,
+        userName: manager.name,
+        userRole: manager.role,
+        isSpecialApprover: false,
+        sequence: newSequence,
+      },
+    ])
+  }
+
+  const removeApprover = (userId: string) => {
+    const filteredList = approversList
+      .filter((a) => a.userId !== userId)
+      .map((a, index) => ({ ...a, sequence: index + 1 })) // Re-sequence
+    setApproversList(filteredList)
+  }
+
+  const moveApproverUp = (index: number) => {
+    if (index === 0) return
+    const newList = [...approversList]
+    ;[newList[index - 1], newList[index]] = [newList[index], newList[index - 1]]
+    // Re-assign sequences
+    const updatedList = newList.map((a, i) => ({ ...a, sequence: i + 1 }))
+    setApproversList(updatedList)
+  }
+
+  const moveApproverDown = (index: number) => {
+    if (index === approversList.length - 1) return
+    const newList = [...approversList]
+    ;[newList[index], newList[index + 1]] = [newList[index + 1], newList[index]]
+    // Re-assign sequences
+    const updatedList = newList.map((a, i) => ({ ...a, sequence: i + 1 }))
+    setApproversList(updatedList)
   }
 
   const toggleSpecialApprover = (userId: string) => {
-    setSpecialApprovers((prev) =>
-      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
+    setApproversList(
+      approversList.map((a) =>
+        a.userId === userId ? { ...a, isSpecialApprover: !a.isSpecialApprover } : a
+      )
     )
   }
+
+  // Get available managers (not yet added)
+  const availableManagers = managers.filter(
+    (m: any) => !approversList.some((a) => a.userId === m.id)
+  )
 
   return (
     <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50 p-4">
@@ -343,73 +448,121 @@ function ApprovalRuleModal({
           {/* Approvers */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Select Approvers
+              Approval Sequence
             </label>
-            <div className="border border-gray-300 rounded-md max-h-60 overflow-y-auto">
-              {managers.length === 0 ? (
-                <p className="p-4 text-sm text-gray-500 text-center">
-                  No managers available. Create manager users first.
+            
+            {/* Selected Approvers List */}
+            {approversList.length > 0 && (
+              <div className="mb-4 border border-gray-300 rounded-md p-3 bg-gray-50">
+                <p className="text-xs text-gray-600 mb-2 font-medium">
+                  Selected Approvers (in sequence order):
                 </p>
-              ) : (
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50 sticky top-0">
-                    <tr>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                        User
-                      </th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                        Role
-                      </th>
-                      <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">
-                        Include
-                      </th>
-                      {(formData.ruleType === 'SPECIFIC_APPROVER' ||
-                        formData.ruleType === 'HYBRID') && (
-                        <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">
-                          Special ⭐
-                        </th>
+                <div className="space-y-2">
+                  {approversList.map((approver, index) => (
+                    <div
+                      key={approver.userId}
+                      className="flex items-center gap-2 p-2 bg-white rounded-lg border border-gray-200"
+                    >
+                      {/* Sequence Number */}
+                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-600 text-white text-sm font-bold">
+                        {approver.sequence}
+                      </div>
+                      
+                      {/* Approver Info */}
+                      <div className="flex-1">
+                        <div className="font-medium text-gray-900">{approver.userName}</div>
+                        <div className="text-xs text-gray-500">{approver.userRole}</div>
+                      </div>
+                      
+                      {/* Special Approver Toggle */}
+                      {(formData.ruleType === 'SPECIFIC_APPROVER' || formData.ruleType === 'HYBRID') && (
+                        <button
+                          type="button"
+                          onClick={() => toggleSpecialApprover(approver.userId)}
+                          className={`px-2 py-1 text-xs rounded-full font-medium ${
+                            approver.isSpecialApprover
+                              ? 'bg-purple-100 text-purple-800 border border-purple-300'
+                              : 'bg-gray-100 text-gray-600 border border-gray-300'
+                          }`}
+                        >
+                          {approver.isSpecialApprover ? '⭐ Special' : 'Regular'}
+                        </button>
                       )}
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {managers.map((manager: any) => (
-                      <tr key={manager.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-2 text-sm text-gray-900">{manager.name}</td>
-                        <td className="px-4 py-2 text-sm text-gray-500">{manager.role}</td>
-                        <td className="px-4 py-2 text-center">
-                          <input
-                            type="checkbox"
-                            checked={selectedApprovers.includes(manager.id)}
-                            onChange={() => toggleApprover(manager.id)}
-                            className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-                          />
-                        </td>
-                        {(formData.ruleType === 'SPECIFIC_APPROVER' ||
-                          formData.ruleType === 'HYBRID') && (
-                          <td className="px-4 py-2 text-center">
-                            <input
-                              type="checkbox"
-                              disabled={!selectedApprovers.includes(manager.id)}
-                              checked={specialApprovers.includes(manager.id)}
-                              onChange={() => toggleSpecialApprover(manager.id)}
-                              className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded disabled:opacity-50"
-                            />
-                          </td>
-                        )}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
+                      
+                      {/* Move Up/Down Buttons */}
+                      <div className="flex gap-1">
+                        <button
+                          type="button"
+                          onClick={() => moveApproverUp(index)}
+                          disabled={index === 0}
+                          className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                          title="Move up"
+                        >
+                          <ArrowUp className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveApproverDown(index)}
+                          disabled={index === approversList.length - 1}
+                          className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                          title="Move down"
+                        >
+                          <ArrowDown className="h-4 w-4" />
+                        </button>
+                      </div>
+                      
+                      {/* Remove Button */}
+                      <button
+                        type="button"
+                        onClick={() => removeApprover(approver.userId)}
+                        className="p-1 text-red-400 hover:text-red-600"
+                        title="Remove"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {/* Add Approver Dropdown */}
+            <div className="flex items-center gap-2">
+              <select
+                onChange={(e) => {
+                  if (e.target.value) {
+                    addApprover(e.target.value)
+                    e.target.value = ''
+                  }
+                }}
+                className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm px-3 py-2 border"
+              >
+                <option value="">
+                  {availableManagers.length === 0
+                    ? 'No more approvers available'
+                    : 'Select an approver to add...'}
+                </option>
+                {availableManagers.map((manager: any) => (
+                  <option key={manager.id} value={manager.id}>
+                    {manager.name} ({manager.role})
+                  </option>
+                ))}
+              </select>
             </div>
+            
             <p className="mt-2 text-xs text-gray-500">
-              {formData.ruleType === 'SPECIFIC_APPROVER' && (
-                <>⭐ Special approvers can auto-approve regardless of other approvals</>
-              )}
-              {formData.ruleType === 'HYBRID' && (
-                <>⭐ Expense is approved if special approver approves OR percentage threshold is met</>
-              )}
+              💡 Use the arrow buttons to reorder approvers. Lower sequence numbers will be processed first.
             </p>
+            {formData.ruleType === 'SPECIFIC_APPROVER' && (
+              <p className="mt-1 text-xs text-purple-600">
+                ⭐ Mark approvers as "Special" to allow them to auto-approve regardless of other approvals
+              </p>
+            )}
+            {formData.ruleType === 'HYBRID' && (
+              <p className="mt-1 text-xs text-purple-600">
+                ⭐ Expense is approved if a special approver approves OR the percentage threshold is met
+              </p>
+            )}
           </div>
 
           {/* Buttons */}
@@ -423,7 +576,7 @@ function ApprovalRuleModal({
             </button>
             <button
               type="submit"
-              disabled={createMutation.isPending || selectedApprovers.length === 0}
+              disabled={createMutation.isPending || approversList.length === 0}
               className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:opacity-50"
             >
               {createMutation.isPending ? 'Creating...' : 'Create Rule'}

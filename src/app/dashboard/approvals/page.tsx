@@ -85,6 +85,49 @@ export default function ApprovalsPage() {
     approveMutation.mutate({ expenseId, status, comments: comments || undefined })
   }
 
+  // Admin Override mutation
+  const overrideExpenseMutation = useMutation({
+    mutationFn: async ({ expenseId, action, reason }: { expenseId: string; action: 'APPROVE' | 'REJECT'; reason: string }) => {
+      const response = await fetch(`/api/expenses/${expenseId}/override`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, reason }),
+      })
+      
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to override expense')
+      }
+      
+      return response.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['approval-requests'] })
+      queryClient.invalidateQueries({ queryKey: ['expenses'] })
+      setSelectedExpense(null)
+      setComments('')
+      alert('Expense override successful!')
+    },
+    onError: (error: Error) => {
+      alert(error.message)
+    },
+  })
+
+  const handleOverride = (expenseId: string, action: 'APPROVE' | 'REJECT') => {
+    const reason = prompt(
+      `Please provide a reason for ${action === 'APPROVE' ? 'approving' : 'rejecting'} this expense via admin override:`
+    )
+    
+    if (!reason || reason.trim() === '') {
+      alert('Reason is required for admin override')
+      return
+    }
+    
+    if (confirm(`Are you sure you want to ${action.toLowerCase()} this expense via admin override? This will bypass all pending approvals.`)) {
+      overrideExpenseMutation.mutate({ expenseId, action, reason })
+    }
+  }
+
   // Filter approval requests
   const filteredRequests = approvalRequests?.filter(request => {
     if (filter === 'pending') return request.status === 'PENDING'
@@ -307,7 +350,37 @@ export default function ApprovalsPage() {
                 {/* Approval Chain */}
                 {selectedExpense?.id === request.id && (
                   <div className="mt-6 pt-6 border-t border-gray-200">
-                    <h4 className="font-medium text-gray-900 mb-3">Approval Chain</h4>
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="font-medium text-gray-900">Approval Chain</h4>
+                      
+                      {/* Admin Override Buttons */}
+                      {session?.user?.role === 'ADMIN' && request.expense.status === 'PENDING' && (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleOverride(request.expenseId, 'APPROVE')
+                            }}
+                            disabled={overrideExpenseMutation.isPending}
+                            className="px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center gap-1"
+                          >
+                            <Check className="h-4 w-4" />
+                            Override Approve
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleOverride(request.expenseId, 'REJECT')
+                            }}
+                            disabled={overrideExpenseMutation.isPending}
+                            className="px-3 py-1.5 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors flex items-center gap-1"
+                          >
+                            <X className="h-4 w-4" />
+                            Override Reject
+                          </button>
+                        </div>
+                      )}
+                    </div>
                     <div className="space-y-2">
                       {request.expense.approvalRequests
                         .sort((a, b) => a.sequence - b.sequence)
