@@ -1,14 +1,14 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
+    const session = await getServerSession(authOptions);
 
     if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const notifications = await prisma.notification.findMany({
@@ -16,36 +16,36 @@ export async function GET(request: NextRequest) {
         userId: session.user.id,
       },
       orderBy: {
-        createdAt: 'desc'
+        createdAt: "desc",
       },
-      take: 20 // Limit to recent 20 notifications
-    })
+      take: 20, // Limit to recent 20 notifications
+    });
 
-    return NextResponse.json(notifications)
+    return NextResponse.json(notifications);
   } catch (error) {
-    console.error('Failed to fetch notifications:', error)
+    console.error("Failed to fetch notifications:", error);
     return NextResponse.json(
-      { error: 'Failed to fetch notifications' },
+      { error: "Failed to fetch notifications" },
       { status: 500 }
-    )
+    );
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
+    const session = await getServerSession(authOptions);
 
     if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { title, message, type = 'info', expenseId } = await request.json()
+    const { title, message, type = "info", expenseId } = await request.json();
 
     if (!title || !message) {
       return NextResponse.json(
-        { error: 'Title and message are required' },
+        { error: "Title and message are required" },
         { status: 400 }
-      )
+      );
     }
 
     const notification = await prisma.notification.create({
@@ -56,15 +56,15 @@ export async function POST(request: NextRequest) {
         type,
         expenseId,
         read: false,
-      }
-    })
+      },
+    });
 
-    return NextResponse.json(notification, { status: 201 })
+    return NextResponse.json(notification, { status: 201 });
   } catch (error) {
-    console.error('Failed to create notification:', error)
+    console.error("Failed to create notification:", error);
     return NextResponse.json(
-      { error: 'Failed to create notification' },
+      { error: "Failed to create notification" },
       { status: 500 }
-    )
+    );
   }
 }

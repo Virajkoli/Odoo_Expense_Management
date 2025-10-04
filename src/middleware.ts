@@ -4,9 +4,11 @@ import { NextResponse } from "next/server";
 export default withAuth(
   function middleware(req) {
     // Skip middleware for static files and API routes for better performance
-    if (req.nextUrl.pathname.startsWith("/_next") || 
-        req.nextUrl.pathname.startsWith("/api") ||
-        req.nextUrl.pathname.includes(".")) {
+    if (
+      req.nextUrl.pathname.startsWith("/_next") ||
+      req.nextUrl.pathname.startsWith("/api") ||
+      req.nextUrl.pathname.includes(".")
+    ) {
       return NextResponse.next();
     }
 
@@ -26,17 +28,19 @@ export default withAuth(
     callbacks: {
       authorized: ({ token, req }) => {
         // Skip authorization for static files and API routes
-        if (req.nextUrl.pathname.startsWith("/_next") || 
-            req.nextUrl.pathname.startsWith("/api") ||
-            req.nextUrl.pathname.includes(".")) {
+        if (
+          req.nextUrl.pathname.startsWith("/_next") ||
+          req.nextUrl.pathname.startsWith("/api") ||
+          req.nextUrl.pathname.includes(".")
+        ) {
           return true;
         }
-        
+
         // Allow access to auth pages without authentication
         if (req.nextUrl.pathname.startsWith("/auth/")) {
           return true;
         }
-        
+
         // Require authentication for all other pages
         return !!token;
       },

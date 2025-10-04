@@ -1,11 +1,11 @@
-import { prisma } from '@/lib/prisma'
+import { prisma } from "@/lib/prisma";
 
 interface CreateNotificationData {
-  userId: string
-  title: string
-  message: string
-  type?: 'INFO' | 'SUCCESS' | 'WARNING' | 'ERROR'
-  expenseId?: string
+  userId: string;
+  title: string;
+  message: string;
+  type?: "INFO" | "SUCCESS" | "WARNING" | "ERROR";
+  expenseId?: string;
 }
 
 export class NotificationService {
@@ -16,16 +16,16 @@ export class NotificationService {
           userId: data.userId,
           title: data.title,
           message: data.message,
-          type: data.type || 'INFO',
+          type: data.type || "INFO",
           expenseId: data.expenseId,
           read: false,
-        }
-      })
-      
-      return notification
+        },
+      });
+
+      return notification;
     } catch (error) {
-      console.error('Failed to create notification:', error)
-      throw error
+      console.error("Failed to create notification:", error);
+      throw error;
     }
   }
 
@@ -40,13 +40,13 @@ export class NotificationService {
               id: true,
               name: true,
               email: true,
-            }
-          }
-        }
-      })
+            },
+          },
+        },
+      });
 
       if (!expense) {
-        throw new Error('Expense not found')
+        throw new Error("Expense not found");
       }
 
       // Get approver information
@@ -54,30 +54,36 @@ export class NotificationService {
         where: { id: approverId },
         select: {
           name: true,
-        }
-      })
+        },
+      });
 
       if (!approver) {
-        throw new Error('Approver not found')
+        throw new Error("Approver not found");
       }
 
       // Create notification for the employee
       await this.createNotification({
         userId: expense.userId,
-        title: '✅ Expense Approved',
-        message: `Your expense "${expense.category}" for ${expense.originalCurrency} ${expense.amount.toFixed(2)} has been approved by ${approver.name}.`,
-        type: 'SUCCESS',
+        title: "✅ Expense Approved",
+        message: `Your expense "${expense.category}" for ${
+          expense.originalCurrency
+        } ${expense.amount.toFixed(2)} has been approved by ${approver.name}.`,
+        type: "SUCCESS",
         expenseId: expense.id,
-      })
+      });
 
-      return true
+      return true;
     } catch (error) {
-      console.error('Failed to send approval notification:', error)
-      return false
+      console.error("Failed to send approval notification:", error);
+      return false;
     }
   }
 
-  static async notifyExpenseRejection(expenseId: string, approverId: string, reason?: string) {
+  static async notifyExpenseRejection(
+    expenseId: string,
+    approverId: string,
+    reason?: string
+  ) {
     try {
       // Get expense details with user information
       const expense = await prisma.expense.findUnique({
@@ -88,13 +94,13 @@ export class NotificationService {
               id: true,
               name: true,
               email: true,
-            }
-          }
-        }
-      })
+            },
+          },
+        },
+      });
 
       if (!expense) {
-        throw new Error('Expense not found')
+        throw new Error("Expense not found");
       }
 
       // Get approver information
@@ -102,28 +108,32 @@ export class NotificationService {
         where: { id: approverId },
         select: {
           name: true,
-        }
-      })
+        },
+      });
 
       if (!approver) {
-        throw new Error('Approver not found')
+        throw new Error("Approver not found");
       }
 
-      const reasonText = reason ? ` Reason: ${reason}` : ''
+      const reasonText = reason ? ` Reason: ${reason}` : "";
 
       // Create notification for the employee
       await this.createNotification({
         userId: expense.userId,
-        title: '❌ Expense Rejected',
-        message: `Your expense "${expense.category}" for ${expense.originalCurrency} ${expense.amount.toFixed(2)} has been rejected by ${approver.name}.${reasonText}`,
-        type: 'ERROR',
+        title: "❌ Expense Rejected",
+        message: `Your expense "${expense.category}" for ${
+          expense.originalCurrency
+        } ${expense.amount.toFixed(2)} has been rejected by ${
+          approver.name
+        }.${reasonText}`,
+        type: "ERROR",
         expenseId: expense.id,
-      })
+      });
 
-      return true
+      return true;
     } catch (error) {
-      console.error('Failed to send rejection notification:', error)
-      return false
+      console.error("Failed to send rejection notification:", error);
+      return false;
     }
   }
 
@@ -144,41 +154,47 @@ export class NotificationService {
                   id: true,
                   name: true,
                   email: true,
-                }
-              }
-            }
-          }
-        }
-      })
+                },
+              },
+            },
+          },
+        },
+      });
 
       if (!expense) {
-        throw new Error('Expense not found')
+        throw new Error("Expense not found");
       }
 
       // Notify employee about successful submission
       await this.createNotification({
         userId: expense.userId,
-        title: '📄 Expense Submitted',
-        message: `Your expense "${expense.category}" for ${expense.originalCurrency} ${expense.amount.toFixed(2)} has been submitted for approval.`,
-        type: 'INFO',
+        title: "📄 Expense Submitted",
+        message: `Your expense "${expense.category}" for ${
+          expense.originalCurrency
+        } ${expense.amount.toFixed(2)} has been submitted for approval.`,
+        type: "INFO",
         expenseId: expense.id,
-      })
+      });
 
       // Notify manager if exists
       if (expense.user.manager) {
         await this.createNotification({
           userId: expense.user.manager.id,
-          title: '📋 New Expense for Approval',
-          message: `${expense.user.name} submitted an expense "${expense.category}" for ${expense.originalCurrency} ${expense.amount.toFixed(2)} requiring your approval.`,
-          type: 'INFO',
+          title: "📋 New Expense for Approval",
+          message: `${expense.user.name} submitted an expense "${
+            expense.category
+          }" for ${expense.originalCurrency} ${expense.amount.toFixed(
+            2
+          )} requiring your approval.`,
+          type: "INFO",
           expenseId: expense.id,
-        })
+        });
       }
 
-      return true
+      return true;
     } catch (error) {
-      console.error('Failed to send submission notification:', error)
-      return false
+      console.error("Failed to send submission notification:", error);
+      return false;
     }
   }
 
@@ -188,13 +204,13 @@ export class NotificationService {
         where: {
           userId,
           read: false,
-        }
-      })
-      
-      return count
+        },
+      });
+
+      return count;
     } catch (error) {
-      console.error('Failed to get unread count:', error)
-      return 0
+      console.error("Failed to get unread count:", error);
+      return 0;
     }
   }
 }
