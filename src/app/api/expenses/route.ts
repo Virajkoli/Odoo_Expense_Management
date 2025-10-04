@@ -74,7 +74,7 @@ export async function GET(req: NextRequest) {
         }
       })
 
-      const employeeIds = manager?.employees.map(emp => emp.id) || []
+      const employeeIds = manager?.employees.map((emp: any) => emp.id) || []
 
       expenses = await prisma.expense.findMany({
         where: {
@@ -199,7 +199,7 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    // Get user's manager to create approval workflow
+    // Get user's manager
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
       include: {
@@ -207,18 +207,83 @@ export async function POST(req: NextRequest) {
       }
     })
 
-    // Create approval request for manager if exists and isManagerApprover is true
+    let currentSequence = 1
+
+    // Step 1: Create approval request for manager if exists and isManagerApprover is true
     if (user?.manager && user.manager.isManagerApprover) {
       await prisma.approvalRequest.create({
         data: {
           expenseId: expense.id,
           approverId: user.managerId!,
-          sequence: 1,
+          sequence: currentSequence,
         }
       })
+      currentSequence++
     }
 
-    // TODO: Check for additional approval rules based on amount/category
+    // Step 2: Get active approval rules for this company
+    const approvalRules = await prisma.approvalRule.findMany({
+      where: {
+        companyId: session.user.companyId,
+        isActive: true,
+      },
+      include: {
+        approvers: {
+          include: {
+            user: true
+          },
+          orderBy: {
+            sequence: 'asc'
+          }
+        }
+      },
+      orderBy: {
+        sequence: 'asc'
+      }
+    })
+
+    // Step 3: Process each approval rule
+    for (const rule of approvalRules) {
+      if (rule.ruleType === 'PERCENTAGE') {
+        // For percentage rules, create approval requests for all approvers at the same sequence
+        for (const approver of rule.approvers) {
+          await prisma.approvalRequest.create({
+            data: {
+              expenseId: expense.id,
+              approverId: approver.userId,
+              sequence: currentSequence,
+            }
+          })
+        }
+        currentSequence++
+      } else if (rule.ruleType === 'SPECIFIC_APPROVER') {
+        // For specific approver rules, create approval requests for special approvers
+        const specialApprovers = rule.approvers.filter((a: any) => a.isSpecialApprover)
+        for (const approver of specialApprovers) {
+          await prisma.approvalRequest.create({
+            data: {
+              expenseId: expense.id,
+              approverId: approver.userId,
+              sequence: currentSequence,
+            }
+          })
+        }
+        currentSequence++
+      } else if (rule.ruleType === 'HYBRID') {
+        // For hybrid rules, create approval requests for all approvers at the same sequence
+        // The approval logic will handle both percentage and special approver conditions
+        for (const approver of rule.approvers) {
+          await prisma.approvalRequest.create({
+            data: {
+              expenseId: expense.id,
+              approverId: approver.userId,
+              sequence: currentSequence,
+            }
+          })
+        }
+        currentSequence++
+      }
+    }
 
     return NextResponse.json(expense, { status: 201 })
   } catch (error) {

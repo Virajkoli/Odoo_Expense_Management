@@ -17,10 +17,10 @@ export default function DashboardPage() {
   })
 
   const { data: approvals } = useQuery({
-    queryKey: ['approvals'],
+    queryKey: ['approval-requests'],
     queryFn: async () => {
-      const { data } = await axios.get('/api/expenses?status=PENDING')
-      return data
+      const { data } = await axios.get('/api/approval-requests')
+      return data.filter((req: any) => req.status === 'PENDING')
     },
     enabled: session?.user?.role !== 'EMPLOYEE',
   })
