@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { NotificationService } from "@/lib/notifications";
 import { z } from "zod";
 
 const expenseSchema = z.object({
@@ -281,6 +282,9 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Send notification about expense submission
+    await NotificationService.notifyExpenseSubmitted(expense.id);
+
     return NextResponse.json(expense, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -288,73 +292,6 @@ export async function POST(req: NextRequest) {
     }
 
     console.error("Error creating expense:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
-  }
-}
-
-// DELETE - Delete expense
-export async function DELETE(req: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const { searchParams } = new URL(req.url);
-    const expenseId = searchParams.get("id");
-
-    if (!expenseId) {
-      return NextResponse.json(
-        { error: "Expense ID is required" },
-        { status: 400 }
-      );
-    }
-
-    // Find the expense
-    const expense = await prisma.expense.findUnique({
-      where: { id: expenseId },
-      include: {
-        approvalRequests: true,
-      },
-    });
-
-    if (!expense) {
-      return NextResponse.json({ error: "Expense not found" }, { status: 404 });
-    }
-
-    // Check if user owns the expense
-    if (expense.userId !== session.user.id) {
-      return NextResponse.json(
-        { error: "You can only delete your own expenses" },
-        { status: 403 }
-      );
-    }
-
-    // Only allow deletion of PENDING expenses (not yet approved/rejected)
-    if (expense.status !== "PENDING") {
-      return NextResponse.json(
-        { error: "Only pending expenses can be deleted" },
-        { status: 400 }
-      );
-    }
-
-    // Delete associated approval requests first (cascade)
-    await prisma.approvalRequest.deleteMany({
-      where: { expenseId: expense.id },
-    });
-
-    // Delete the expense
-    await prisma.expense.delete({
-      where: { id: expense.id },
-    });
-
-    return NextResponse.json({ message: "Expense deleted successfully" });
-  } catch (error) {
-    console.error("Error deleting expense:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
