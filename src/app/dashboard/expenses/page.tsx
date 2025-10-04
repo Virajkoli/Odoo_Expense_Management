@@ -161,6 +161,46 @@ export default function ExpensesPage() {
     createExpenseMutation.mutate(formData)
   }
 
+  // Override expense mutation (admin only)
+  const overrideExpenseMutation = useMutation({
+    mutationFn: async ({ expenseId, action, reason }: { expenseId: string; action: 'APPROVE' | 'REJECT'; reason: string }) => {
+      const response = await fetch(`/api/expenses/${expenseId}/override`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, reason }),
+      })
+      
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to override expense')
+      }
+      
+      return response.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['expenses'] })
+      alert('Expense override successful!')
+    },
+    onError: (error: Error) => {
+      alert(error.message)
+    },
+  })
+
+  const handleOverride = (expenseId: string, action: 'APPROVE' | 'REJECT') => {
+    const reason = prompt(
+      `Please provide a reason for ${action === 'APPROVE' ? 'approving' : 'rejecting'} this expense via admin override:`
+    )
+    
+    if (!reason || reason.trim() === '') {
+      alert('Reason is required for admin override')
+      return
+    }
+    
+    if (confirm(`Are you sure you want to ${action.toLowerCase()} this expense via admin override? This will bypass all pending approvals.`)) {
+      overrideExpenseMutation.mutate({ expenseId, action, reason })
+    }
+  }
+
   // Filter expenses
   const filteredExpenses = expenses?.filter(expense => {
     if (filterStatus === 'all') return true
@@ -413,7 +453,36 @@ export default function ExpensesPage() {
                 {/* Approval Status - Expanded */}
                 {selectedExpense?.id === expense.id && expense.approvalRequests.length > 0 && (
                   <div className="mt-6 pt-6 border-t border-gray-200">
-                    <h4 className="font-medium text-gray-900 mb-3">Approval Status</h4>
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="font-medium text-gray-900">Approval Status</h4>
+                      
+                      {/* Admin Override Buttons */}
+                      {session?.user?.role === 'ADMIN' && expense.status === 'PENDING' && (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleOverride(expense.id, 'APPROVE')
+                            }}
+                            className="px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors flex items-center gap-1"
+                          >
+                            <CheckCircle className="h-4 w-4" />
+                            Override Approve
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleOverride(expense.id, 'REJECT')
+                            }}
+                            className="px-3 py-1.5 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors flex items-center gap-1"
+                          >
+                            <XCircle className="h-4 w-4" />
+                            Override Reject
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    
                     <div className="space-y-2">
                       {expense.approvalRequests
                         .sort((a, b) => a.sequence - b.sequence)
@@ -425,6 +494,8 @@ export default function ExpensesPage() {
                                 ? 'bg-green-50'
                                 : ar.status === 'REJECTED'
                                 ? 'bg-red-50'
+                                : ar.status === 'CANCELLED'
+                                ? 'bg-gray-50'
                                 : 'bg-yellow-50'
                             }`}
                           >
@@ -433,6 +504,8 @@ export default function ExpensesPage() {
                                 <CheckCircle className="h-5 w-5 text-green-600" />
                               ) : ar.status === 'REJECTED' ? (
                                 <XCircle className="h-5 w-5 text-red-600" />
+                              ) : ar.status === 'CANCELLED' ? (
+                                <XCircle className="h-5 w-5 text-gray-400" />
                               ) : (
                                 <Clock className="h-5 w-5 text-yellow-600" />
                               )}
@@ -440,7 +513,7 @@ export default function ExpensesPage() {
                             <div className="flex-1">
                               <div className="flex items-center gap-2">
                                 <span className="font-medium text-gray-900">
-                                  Step {ar.sequence}
+                                  {ar.sequence === 999 ? 'Admin Override' : `Step ${ar.sequence}`}
                                 </span>
                                 <span className="text-gray-600">-</span>
                                 <span className="text-gray-700">{ar.approver.name}</span>
@@ -457,6 +530,8 @@ export default function ExpensesPage() {
                                 ? 'bg-green-100 text-green-800'
                                 : ar.status === 'REJECTED'
                                 ? 'bg-red-100 text-red-800'
+                                : ar.status === 'CANCELLED'
+                                ? 'bg-gray-100 text-gray-600'
                                 : 'bg-yellow-100 text-yellow-800'
                             }`}>
                               {ar.status}
