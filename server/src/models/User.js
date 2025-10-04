@@ -8,7 +8,7 @@ const userSchema = new mongoose.Schema(
     passwordHash: { type: String, required: true },
     role: { type: String, enum: ['user', 'manager', 'admin'], default: 'user' },
   },
-  { timestamps: true }
+  { timestamps: true },
 )
 
 userSchema.methods.comparePassword = function (password) {

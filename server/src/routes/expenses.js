@@ -8,7 +8,9 @@ const router = Router()
 router.get('/', authRequired, async (req, res, next) => {
   try {
     const query = ['manager', 'admin'].includes(req.user.role) ? {} : { user: req.user.id }
-    const items = await Expense.find(query).populate('user', 'name email role').sort({ createdAt: -1 })
+    const items = await Expense.find(query)
+      .populate('user', 'name email role')
+      .sort({ createdAt: -1 })
     res.json(items)
   } catch (err) {
     next(err)
@@ -44,20 +46,25 @@ router.put('/:id', authRequired, async (req, res, next) => {
 })
 
 // Approve/Reject by manager or admin
-router.post('/:id/status', authRequired, requireRole('manager', 'admin'), async (req, res, next) => {
-  try {
-    const { id } = req.params
-    const { status } = req.body
-    if (!['approved', 'rejected', 'pending'].includes(status)) {
-      return res.status(400).json({ message: 'Invalid status' })
+router.post(
+  '/:id/status',
+  authRequired,
+  requireRole('manager', 'admin'),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params
+      const { status } = req.body
+      if (!['approved', 'rejected', 'pending'].includes(status)) {
+        return res.status(400).json({ message: 'Invalid status' })
+      }
+      const item = await Expense.findByIdAndUpdate(id, { status }, { new: true })
+      if (!item) return res.status(404).json({ message: 'Not found' })
+      res.json(item)
+    } catch (err) {
+      next(err)
     }
-    const item = await Expense.findByIdAndUpdate(id, { status }, { new: true })
-    if (!item) return res.status(404).json({ message: 'Not found' })
-    res.json(item)
-  } catch (err) {
-    next(err)
-  }
-})
+  },
+)
 
 // Delete own expense or any by admin
 router.delete('/:id', authRequired, async (req, res, next) => {

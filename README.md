@@ -1,6 +1,7 @@
 # Expense Management System
 
 Full-stack JavaScript app with:
+
 - Backend: Node.js, Express, MongoDB (Mongoose), JWT auth, role-based authorization.
 - Frontend: React (Vite + TypeScript) with Tailwind CSS.
 - Feature flags: simple system with default `gpt5: true` ("Enable GPT-5 for all clients").
@@ -14,7 +15,7 @@ server/   # Express + Mongoose + JWT
 
 ## Quick start
 
-1) Server
+1. Server
 
 Copy `.env.example` to `.env` in `server/` and adjust as needed.
 
@@ -26,7 +27,7 @@ npm install
 npm run dev
 ```
 
-2) Client
+2. Client
 
 ```
 cd client

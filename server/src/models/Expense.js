@@ -10,7 +10,7 @@ const expenseSchema = new mongoose.Schema(
     status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
     notes: { type: String },
   },
-  { timestamps: true }
+  { timestamps: true },
 )
 
 export default mongoose.model('Expense', expenseSchema)

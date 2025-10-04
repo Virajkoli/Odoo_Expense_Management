@@ -13,7 +13,7 @@ dotenv.config()
 
 const app = express()
 app.use(helmet())
-app.use(cors({ origin: '*'}))
+app.use(cors({ origin: '*' }))
 app.use(express.json())
 app.use(morgan('dev'))
 
@@ -31,11 +31,13 @@ app.use(errorHandler)
 const PORT = process.env.PORT || 5000
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/expense_mgmt'
 
-connectDB(MONGO_URI).then(() => {
-  app.listen(PORT, () => {
-    console.log(`API listening on http://localhost:${PORT}`)
+connectDB(MONGO_URI)
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`API listening on http://localhost:${PORT}`)
+    })
   })
-}).catch((err) => {
-  console.error('Failed to start server:', err)
-  process.exit(1)
-})
+  .catch((err) => {
+    console.error('Failed to start server:', err)
+    process.exit(1)
+  })
