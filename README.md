@@ -74,10 +74,17 @@ A comprehensive expense management system built with Next.js, PostgreSQL, and Cl
 
 ### 1. ✅ Submit Expenses
 - Upload receipt (Cloudinary integration)
-- Enter amount in any currency (auto-converts)
-- Select category and add description
-- Pick expense date
-- Auto-creates approval workflow
+- **Smart OCR Auto-Fill**: Scan receipts to automatically extract:
+  - **Amount**: Total amount from receipt
+  - **Date**: Transaction date
+  - **Currency**: Detected currency (USD, EUR, GBP, etc.)
+  - **Merchant Name**: Restaurant, hotel, or vendor name
+  - **Category**: Auto-categorized (Travel, Meals, Accommodation, etc.)
+  - **Description**: Generated from merchant and category
+- Manual entry option for any field
+- Enter amount in any currency (auto-converts to company currency)
+- Select from predefined categories
+- Auto-creates approval workflow on submission
 
 ### 2. ✅ View Own Expenses
 - List all submitted expenses
@@ -90,6 +97,51 @@ A comprehensive expense management system built with Next.js, PostgreSQL, and Cl
 - View approver names and comments
 - Track rejection reasons
 - Visual status indicators
+
+---
+
+## 🤖 Smart OCR Receipt Scanning
+
+### Automatic Expense Detection
+
+The system includes intelligent OCR (Optical Character Recognition) that automatically reads and extracts expense details from receipt images:
+
+**What Gets Auto-Detected:**
+- 💵 **Amount**: Total expense amount
+- 📅 **Date**: Transaction date
+- 💱 **Currency**: USD, EUR, GBP, CAD, AUD, INR, JPY
+- 🏪 **Merchant Name**: Restaurant, hotel, store, or vendor name
+- 📂 **Category**: Auto-categorized based on merchant type:
+  - Travel (Uber, taxi, airlines, gas stations)
+  - Meals (restaurants, cafes, food delivery)
+  - Accommodation (hotels, Airbnb)
+  - Office Supplies (stationery stores)
+  - Equipment (electronics, hardware)
+  - Software (SaaS, subscriptions)
+  - Entertainment (cinema, events)
+- 📝 **Description**: Generated from merchant and category
+
+**How It Works:**
+1. Employee uploads receipt image (JPG, PNG, PDF)
+2. System automatically scans using Google Cloud Vision AI
+3. Detected fields populate the expense form instantly
+4. Employee reviews and confirms or adjusts any field
+5. Submit with one click!
+
+**Supported Receipt Types:**
+- Restaurant bills
+- Hotel invoices
+- Taxi/ride-share receipts
+- Airline tickets
+- Retail store receipts
+- Gas station receipts
+- Online purchase confirmations
+- Most printed or digital receipts
+
+**Setup Requirements:**
+- Cloudinary account (free tier)
+- Google Cloud Vision AI add-on (free tier: 1000 requests/month)
+- Enable add-on in Cloudinary dashboard
 
 ---
 

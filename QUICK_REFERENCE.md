@@ -1,5 +1,32 @@
 # Odoo Expense Management - Quick Reference Guide
 
+## 🚨 IMPORTANT: OCR Fix Applied (Oct 4, 2025)
+
+### ✅ Fixed: "Detection invalid model 'adv'" Error
+
+**What was wrong:** Invalid parameter `detection: 'adv_ocr'` in Cloudinary upload  
+**What was fixed:** Removed invalid parameter, using only `ocr: 'adv_ocr'`  
+**Status:** ✅ OCR now works correctly with Google Cloud Vision add-on
+
+**To test the fix:**
+```bash
+# 1. Restart dev server
+npm run dev
+
+# 2. Upload your invoice - it should now auto-fill!
+```
+
+**Expected results for your Saffron Design invoice:**
+- Amount: 13,715.52 ✓
+- Currency: INR ✓
+- Merchant: Saffron Design ✓
+- Date: 29/01/2019 ✓
+- Category: Office Supplies ✓
+
+If still not working, see `TROUBLESHOOTING_OCR.md`
+
+---
+
 ## 🎯 Complete Feature Overview
 
 ### ✅ All Role-Based Features (12/12) - **100% COMPLETE**
