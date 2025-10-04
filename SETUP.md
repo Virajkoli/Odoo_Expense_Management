@@ -198,14 +198,57 @@ CLOUDINARY_API_KEY="123456789012345"
 CLOUDINARY_API_SECRET="abcdefghijklmnopqrstuvwxyz"
 ```
 
-### 4. Optional: Enable OCR
+### 4. Enable OCR for Smart Receipt Scanning **HIGHLY RECOMMENDED**
 
-For automatic text extraction from receipts:
+The Smart OCR feature automatically extracts expense details from receipt images, saving significant data entry time.
 
-1. In Cloudinary Dashboard, go to **Add-ons**
-2. Find **Google Cloud Vision**
-3. Subscribe to Free Tier (no credit card required)
-4. OCR will automatically work in the app
+#### Step-by-Step OCR Setup:
+
+1. **In Cloudinary Dashboard**, go to **Add-ons** (left sidebar)
+2. Search for **"Google Cloud Vision"**
+3. Click on **Google Cloud Vision AI**
+4. Select **Free Tier Plan**:
+   - ✅ 1,000 requests per month
+   - ✅ No credit card required
+   - ✅ Perfect for small to medium teams
+5. Click **Subscribe**
+6. Confirm subscription
+
+#### What OCR Enables:
+
+When employees upload a receipt, the system automatically detects:
+- ✅ **Amount**: Total from receipt
+- ✅ **Date**: Transaction date
+- ✅ **Currency**: USD, EUR, GBP, CAD, AUD, INR, JPY
+- ✅ **Merchant Name**: Restaurant, hotel, store name
+- ✅ **Category**: Auto-categorized (Travel, Meals, etc.)
+- ✅ **Description**: Generated summary
+
+#### Testing OCR:
+
+1. After enabling, restart your development server
+2. Go to **Submit Expense** form
+3. Upload a receipt image
+4. Watch the form auto-fill! 🎉
+
+#### Troubleshooting OCR:
+
+**OCR not working?**
+- Verify Google Cloud Vision add-on is subscribed in Cloudinary
+- Check Cloudinary console logs for OCR processing
+- Receipt should be clear and readable
+- Supported formats: JPG, PNG, PDF
+- Max file size: 10MB
+
+**No OCR data detected?**
+- Receipt text may be unclear or handwritten
+- Try a clearer image or different receipt
+- System will gracefully fallback to manual entry
+
+**Monthly limit reached?**
+- Free tier: 1,000 requests/month
+- Upgrade to paid tier if needed
+- Or disable OCR temporarily
 
 ---
 
@@ -376,23 +419,57 @@ Country:       Select your country (e.g., United States)
    ```
 4. Click **"Save"**
 
-### Test 3: Submit an Expense
+### Test 3: Submit Expense with OCR Auto-Fill 🤖
 
 **Sign out and sign in as Employee:**
 
 1. Go to **Dashboard → Expenses**
-2. Click **"Submit Expense"**
-3. Fill in the form:
+2. Click **"Submit Expense"** (blue button top right)
+3. **Test OCR Receipt Scanning:**
+   - Click on the receipt upload area
+   - Select a clear receipt image (restaurant bill, taxi receipt, hotel invoice)
+   - Wait for "Scanning receipt..." (2-3 seconds)
+   - **Watch the magic!** ✨ Form fields auto-populate:
+     - Amount extracted from receipt
+     - Date from transaction
+     - Currency detected
+     - Merchant name filled
+     - Category auto-selected
+4. **Review Auto-Filled Data:**
+   - Check if amount is correct
+   - Verify date makes sense
+   - Adjust category if needed
+   - Edit description if desired
+5. Click **"Submit"**
+6. You should see the expense with status **PENDING**
+
+**Expected OCR Results:**
+- ✅ **Restaurant Receipt**: Amount, date, restaurant name → "Meals" category
+- ✅ **Taxi Receipt**: Fare, date, Uber/Lyft → "Travel" category  
+- ✅ **Hotel Bill**: Total, checkout date, hotel name → "Accommodation" category
+- ✅ **Gas Station**: Amount, date, fuel → "Travel" category
+
+**If OCR doesn't work:**
+- Ensure Google Cloud Vision is enabled in Cloudinary
+- Try a clearer receipt image
+- System will gracefully allow manual entry
+
+### Test 3B: Manual Entry (Fallback)
+
+If OCR is not enabled or receipt is unclear:
+
+1. Click **"Submit Expense"**
+2. Manually fill in the form:
    ```
    Amount: 100.00
    Currency: USD (or your company currency)
    Category: Travel
    Description: Taxi to client meeting
    Date: Today
-   Receipt: Upload a test image
+   Receipt: Upload image (stores but no OCR)
    ```
-4. Click **"Submit"**
-5. You should see the expense with status **PENDING**
+3. Click **"Submit"**
+4. Expense created successfully
 
 ### Test 4: Approve Expense
 

@@ -68,6 +68,7 @@ export default function ExpensesPage() {
     expenseDate: new Date().toISOString().split('T')[0],
     receiptUrl: '',
     receiptPublicId: '',
+    receiptFileType: '', // Track the file type (e.g., 'application/pdf', 'image/jpeg')
   })
   const [uploadingReceipt, setUploadingReceipt] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
@@ -89,6 +90,8 @@ export default function ExpensesPage() {
     try {
       const formData = new FormData()
       formData.append('file', file)
+      // Enable OCR by default
+      formData.append('extractOcr', 'true')
 
       const response = await fetch('/api/upload', {
         method: 'POST',
@@ -98,12 +101,65 @@ export default function ExpensesPage() {
       if (!response.ok) throw new Error('Upload failed')
       
       const data = await response.json()
+      
+      // Update form with receipt URL, public ID, and file type
       setFormData(prev => ({
         ...prev,
         receiptUrl: data.url,
         receiptPublicId: data.publicId,
+        receiptFileType: data.fileType || file.type, // Use returned fileType or fallback to file.type
       }))
+
+      // Auto-fill form fields if OCR data is available
+      if (data.parsedData) {
+        console.log('Auto-filling expense form with OCR data:', data.parsedData)
+        
+        setFormData(prev => ({
+          ...prev,
+          receiptUrl: data.url,
+          receiptPublicId: data.publicId,
+          receiptFileType: data.fileType || file.type,
+          // Auto-fill amount if detected
+          amount: data.parsedData.amount ? data.parsedData.amount.toString() : prev.amount,
+          // Auto-fill currency if detected
+          originalCurrency: data.parsedData.currency || prev.originalCurrency,
+          // Auto-fill category if detected
+          category: data.parsedData.category || prev.category,
+          // Auto-fill description (merchant name)
+          description: data.parsedData.description || data.parsedData.merchantName || prev.description,
+          // Auto-fill date if detected
+          expenseDate: data.parsedData.date || prev.expenseDate,
+        }))
+
+        // Show success message to user
+        const fieldsDetected = []
+        if (data.parsedData.amount) fieldsDetected.push('amount')
+        if (data.parsedData.currency) fieldsDetected.push('currency')
+        if (data.parsedData.category) fieldsDetected.push('category')
+        if (data.parsedData.merchantName || data.parsedData.description) fieldsDetected.push('description')
+        if (data.parsedData.date) fieldsDetected.push('date')
+
+        if (fieldsDetected.length > 0) {
+          alert(`✨ Receipt scanned successfully!\n\nAuto-detected: ${fieldsDetected.join(', ')}\n\nPlease review and update any fields as needed.`)
+        } else if (data.ocrAvailable) {
+          alert('Receipt uploaded successfully. OCR processing complete but no expense data was detected. Please fill in the details manually.')
+        } else {
+          alert('Receipt uploaded successfully. Note: OCR feature requires Google Cloud Vision add-on to be enabled in Cloudinary.')
+        }
+      } else if (data.error && data.error.includes('OCR')) {
+        // OCR add-on not enabled
+        alert(`⚠️ Receipt uploaded successfully, but OCR auto-fill is not available.\n\n` +
+              `Reason: ${data.error}\n\n` +
+              `To enable auto-fill from receipts:\n` +
+              `1. Go to https://cloudinary.com/console/addons\n` +
+              `2. Install "Google Cloud Vision" add-on (FREE)\n` +
+              `3. Restart the app\n\n` +
+              `For now, please fill in the expense details manually.`)
+      } else {
+        alert('Receipt uploaded successfully. Please fill in the expense details.')
+      }
     } catch (error) {
+      console.error('Upload error:', error)
       alert('Failed to upload receipt. Please try again.')
     } finally {
       setUploadingReceipt(false)
@@ -154,6 +210,7 @@ export default function ExpensesPage() {
       expenseDate: new Date().toISOString().split('T')[0],
       receiptUrl: '',
       receiptPublicId: '',
+      receiptFileType: '',
     })
   }
 
@@ -491,11 +548,22 @@ export default function ExpensesPage() {
                   {/* Receipt Preview */}
                   {expense.receiptUrl && (
                     <div className="ml-4">
-                      <img
-                        src={expense.receiptUrl}
-                        alt="Receipt"
-                        className="w-24 h-24 object-cover rounded-lg border border-gray-200"
-                      />
+                      {expense.receiptUrl.toLowerCase().endsWith('.pdf') ? (
+                        // PDF Preview
+                        <div className="w-24 h-24 flex items-center justify-center bg-gray-100 rounded-lg border border-gray-200">
+                          <div className="text-center">
+                            <FileText className="h-10 w-10 text-red-600 mx-auto mb-1" />
+                            <span className="text-xs text-gray-600">PDF</span>
+                          </div>
+                        </div>
+                      ) : (
+                        // Image Preview
+                        <img
+                          src={expense.receiptUrl}
+                          alt="Receipt"
+                          className="w-24 h-24 object-cover rounded-lg border border-gray-200"
+                        />
+                      )}
                       <a
                         href={expense.receiptUrl}
                         target="_blank"
@@ -707,20 +775,42 @@ export default function ExpensesPage() {
                 {/* Receipt Upload */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Receipt
+                    Receipt {' '}
+                    <span className="text-xs font-normal text-blue-600">
+                      (OCR auto-fill enabled ✨)
+                    </span>
                   </label>
                   {formData.receiptUrl ? (
                     <div className="flex items-center gap-4">
-                      <img
-                        src={formData.receiptUrl}
-                        alt="Receipt"
-                        className="w-32 h-32 object-cover rounded-lg border border-gray-200"
-                      />
+                      {formData.receiptFileType === 'application/pdf' ? (
+                        // PDF Preview
+                        <div className="w-32 h-32 flex items-center justify-center bg-gray-100 rounded-lg border border-gray-200">
+                          <div className="text-center">
+                            <FileText className="h-12 w-12 text-red-600 mx-auto mb-1" />
+                            <span className="text-xs text-gray-600">PDF</span>
+                          </div>
+                        </div>
+                      ) : (
+                        // Image Preview
+                        <img
+                          src={formData.receiptUrl}
+                          alt="Receipt"
+                          className="w-32 h-32 object-cover rounded-lg border border-gray-200"
+                        />
+                      )}
                       <div className="flex-1">
                         <p className="text-sm text-green-600 mb-2">✓ Receipt uploaded</p>
+                        <a
+                          href={formData.receiptUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-blue-600 hover:text-blue-700 mr-4"
+                        >
+                          View Full
+                        </a>
                         <button
                           type="button"
-                          onClick={() => setFormData({ ...formData, receiptUrl: '', receiptPublicId: '' })}
+                          onClick={() => setFormData({ ...formData, receiptUrl: '', receiptPublicId: '', receiptFileType: '' })}
                           className="text-sm text-red-600 hover:text-red-700"
                         >
                           Remove
@@ -728,15 +818,15 @@ export default function ExpensesPage() {
                       </div>
                     </div>
                   ) : (
-                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
                       <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
                       <label className="cursor-pointer">
                         <span className="text-blue-600 hover:text-blue-700 font-medium">
-                          {uploadingReceipt ? 'Uploading...' : 'Click to upload'}
+                          {uploadingReceipt ? 'Scanning receipt...' : 'Click to upload receipt'}
                         </span>
                         <input
                           type="file"
-                          accept="image/*"
+                          accept="image/*,application/pdf"
                           className="hidden"
                           onChange={(e) => {
                             const file = e.target.files?.[0]
@@ -745,7 +835,10 @@ export default function ExpensesPage() {
                           disabled={uploadingReceipt}
                         />
                       </label>
-                      <p className="text-xs text-gray-500 mt-1">PNG, JPG up to 10MB</p>
+                      <p className="text-xs text-gray-500 mt-1">PNG, JPG, PDF up to 10MB</p>
+                      <p className="text-xs text-blue-600 mt-2">
+                        📸 Smart scan: Automatically extracts amount, date, merchant & category
+                      </p>
                     </div>
                   )}
                 </div>
