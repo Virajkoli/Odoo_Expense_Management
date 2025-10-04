@@ -18,6 +18,11 @@ interface Expense {
   receiptPublicId: string | null
   rejectionReason: string | null
   createdAt: string
+  user: {
+    id: string
+    name: string
+    email: string
+  }
   approvalRequests: {
     id: string
     sequence: number
@@ -65,6 +70,8 @@ export default function ExpensesPage() {
     receiptPublicId: '',
   })
   const [uploadingReceipt, setUploadingReceipt] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [expenseToDelete, setExpenseToDelete] = useState<string | null>(null)
 
   // Fetch expenses
   const { data: expenses, isLoading } = useQuery({
@@ -201,6 +208,42 @@ export default function ExpensesPage() {
     }
   }
 
+  // Delete expense mutation
+  const deleteExpenseMutation = useMutation({
+    mutationFn: async (expenseId: string) => {
+      const response = await fetch(`/api/expenses?id=${expenseId}`, {
+        method: 'DELETE',
+      })
+      
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to delete expense')
+      }
+      
+      return response.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['expenses'] })
+      setShowDeleteModal(false)
+      setExpenseToDelete(null)
+      alert('Expense deleted successfully!')
+    },
+    onError: (error: Error) => {
+      alert(error.message)
+    },
+  })
+
+  const handleDeleteExpense = (expenseId: string) => {
+    setExpenseToDelete(expenseId)
+    setShowDeleteModal(true)
+  }
+
+  const confirmDelete = () => {
+    if (expenseToDelete) {
+      deleteExpenseMutation.mutate(expenseToDelete)
+    }
+  }
+
   // Filter expenses
   const filteredExpenses = expenses?.filter(expense => {
     if (filterStatus === 'all') return true
@@ -247,19 +290,19 @@ export default function ExpensesPage() {
           <div className="text-sm text-gray-600 mb-1">Total Expenses</div>
           <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
         </div>
-        <div className="bg-white p-4 rounded-lg shadow-sm border border-yellow-200 bg-yellow-50">
+        <div className="p-4 rounded-lg shadow-sm border border-yellow-200 bg-yellow-50">
           <div className="text-sm text-yellow-700 mb-1">Pending</div>
           <div className="text-2xl font-bold text-yellow-900">{stats.pending}</div>
         </div>
-        <div className="bg-white p-4 rounded-lg shadow-sm border border-green-200 bg-green-50">
+        <div className="p-4 rounded-lg shadow-sm border border-green-200 bg-green-50">
           <div className="text-sm text-green-700 mb-1">Approved</div>
           <div className="text-2xl font-bold text-green-900">{stats.approved}</div>
         </div>
-        <div className="bg-white p-4 rounded-lg shadow-sm border border-red-200 bg-red-50">
+        <div className="p-4 rounded-lg shadow-sm border border-red-200 bg-red-50">
           <div className="text-sm text-red-700 mb-1">Rejected</div>
           <div className="text-2xl font-bold text-red-900">{stats.rejected}</div>
         </div>
-        <div className="bg-white p-4 rounded-lg shadow-sm border border-blue-200 bg-blue-50">
+        <div className="p-4 rounded-lg shadow-sm border border-blue-200 bg-blue-50">
           <div className="text-sm text-blue-700 mb-1">Total Amount</div>
           <div className="text-2xl font-bold text-blue-900">
             {stats.totalAmount.toFixed(2)}
@@ -346,22 +389,38 @@ export default function ExpensesPage() {
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     {/* Header */}
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className={`px-3 py-1 rounded-full text-sm font-medium ${
-                        expense.status === 'PENDING'
-                          ? 'bg-yellow-100 text-yellow-800'
-                          : expense.status === 'APPROVED'
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-red-100 text-red-800'
-                      }`}>
-                        {expense.status === 'PENDING' && <Clock className="inline h-4 w-4 mr-1" />}
-                        {expense.status === 'APPROVED' && <CheckCircle className="inline h-4 w-4 mr-1" />}
-                        {expense.status === 'REJECTED' && <XCircle className="inline h-4 w-4 mr-1" />}
-                        {expense.status}
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+                          expense.status === 'PENDING'
+                            ? 'bg-yellow-100 text-yellow-800'
+                            : expense.status === 'APPROVED'
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-red-100 text-red-800'
+                        }`}>
+                          {expense.status === 'PENDING' && <Clock className="inline h-4 w-4 mr-1" />}
+                          {expense.status === 'APPROVED' && <CheckCircle className="inline h-4 w-4 mr-1" />}
+                          {expense.status === 'REJECTED' && <XCircle className="inline h-4 w-4 mr-1" />}
+                          {expense.status}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          {new Date(expense.createdAt).toLocaleDateString()}
+                        </div>
                       </div>
-                      <div className="text-sm text-gray-500">
-                        {new Date(expense.createdAt).toLocaleDateString()}
-                      </div>
+                      
+                      {/* Delete Button - Only show for user's own expenses and pending status */}
+                      {expense.user?.id === session?.user?.id && expense.status === 'PENDING' && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleDeleteExpense(expense.id)
+                          }}
+                          className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Delete expense"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
                     </div>
 
                     {/* Expense Details */}
@@ -712,6 +771,62 @@ export default function ExpensesPage() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-gray-900">Delete Expense</h2>
+                <button
+                  onClick={() => {
+                    setShowDeleteModal(false)
+                    setExpenseToDelete(null)
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <XCircle className="h-6 w-6" />
+                </button>
+              </div>
+
+              <div className="mb-6">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="p-2 bg-red-100 rounded-full">
+                    <Trash2 className="h-6 w-6 text-red-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-gray-900">Are you sure?</h3>
+                    <p className="text-sm text-gray-600">This action cannot be undone.</p>
+                  </div>
+                </div>
+                <p className="text-gray-700">
+                  This will permanently delete your expense submission. All associated data including receipts and approval requests will be removed.
+                </p>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowDeleteModal(false)
+                    setExpenseToDelete(null)
+                  }}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  disabled={deleteExpenseMutation.isPending}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+                >
+                  {deleteExpenseMutation.isPending ? 'Deleting...' : 'Delete Expense'}
+                </button>
+              </div>
             </div>
           </div>
         </div>

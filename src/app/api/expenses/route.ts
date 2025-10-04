@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
-import { prisma } from "@/lib/prisma"
-import { z } from "zod"
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { z } from "zod";
 
 const expenseSchema = z.object({
   amount: z.number().positive(),
@@ -12,26 +12,23 @@ const expenseSchema = z.object({
   expenseDate: z.string().datetime(),
   receiptUrl: z.string().optional(),
   receiptPublicId: z.string().optional(),
-})
+});
 
 // GET all expenses (filtered by user role)
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
+    const session = await getServerSession(authOptions);
 
     if (!session?.user) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      )
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { searchParams } = new URL(req.url)
-    const status = searchParams.get('status')
+    const { searchParams } = new URL(req.url);
+    const status = searchParams.get("status");
 
-    let expenses
+    let expenses;
 
-    if (session.user.role === 'ADMIN') {
+    if (session.user.role === "ADMIN") {
       // Admin sees all company expenses
       expenses = await prisma.expense.findMany({
         where: {
@@ -44,7 +41,7 @@ export async function GET(req: NextRequest) {
               id: true,
               name: true,
               email: true,
-            }
+            },
           },
           approvalRequests: {
             include: {
@@ -53,28 +50,28 @@ export async function GET(req: NextRequest) {
                   id: true,
                   name: true,
                   email: true,
-                }
-              }
+                },
+              },
             },
             orderBy: {
-              sequence: 'asc'
-            }
-          }
+              sequence: "asc",
+            },
+          },
         },
         orderBy: {
-          createdAt: 'desc'
-        }
-      })
-    } else if (session.user.role === 'MANAGER') {
+          createdAt: "desc",
+        },
+      });
+    } else if (session.user.role === "MANAGER") {
       // Manager sees their team's expenses
       const manager = await prisma.user.findUnique({
         where: { id: session.user.id },
         include: {
-          employees: true
-        }
-      })
+          employees: true,
+        },
+      });
 
-      const employeeIds = manager?.employees.map((emp: any) => emp.id) || []
+      const employeeIds = manager?.employees.map((emp: any) => emp.id) || [];
 
       expenses = await prisma.expense.findMany({
         where: {
@@ -90,7 +87,7 @@ export async function GET(req: NextRequest) {
               id: true,
               name: true,
               email: true,
-            }
+            },
           },
           approvalRequests: {
             include: {
@@ -99,18 +96,18 @@ export async function GET(req: NextRequest) {
                   id: true,
                   name: true,
                   email: true,
-                }
-              }
+                },
+              },
             },
             orderBy: {
-              sequence: 'asc'
-            }
-          }
+              sequence: "asc",
+            },
+          },
         },
         orderBy: {
-          createdAt: 'desc'
-        }
-      })
+          createdAt: "desc",
+        },
+      });
     } else {
       // Employee sees only their expenses
       expenses = await prisma.expense.findMany({
@@ -124,7 +121,7 @@ export async function GET(req: NextRequest) {
               id: true,
               name: true,
               email: true,
-            }
+            },
           },
           approvalRequests: {
             include: {
@@ -133,54 +130,51 @@ export async function GET(req: NextRequest) {
                   id: true,
                   name: true,
                   email: true,
-                }
-              }
+                },
+              },
             },
             orderBy: {
-              sequence: 'asc'
-            }
-          }
+              sequence: "asc",
+            },
+          },
         },
         orderBy: {
-          createdAt: 'desc'
-        }
-      })
+          createdAt: "desc",
+        },
+      });
     }
 
-    return NextResponse.json(expenses)
+    return NextResponse.json(expenses);
   } catch (error) {
-    console.error("Error fetching expenses:", error)
+    console.error("Error fetching expenses:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
-    )
+    );
   }
 }
 
 // POST - Create new expense
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
+    const session = await getServerSession(authOptions);
 
     if (!session?.user) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      )
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await req.json()
-    const data = expenseSchema.parse(body)
+    const body = await req.json();
+    const data = expenseSchema.parse(body);
 
     // Convert currency if needed
-    let convertedAmount = data.amount
+    let convertedAmount = data.amount;
     if (data.originalCurrency !== session.user.companyCurrency) {
       const exchangeResponse = await fetch(
         `https://api.exchangerate-api.com/v4/latest/${data.originalCurrency}`
-      )
-      const exchangeData = await exchangeResponse.json()
-      const rate = exchangeData.rates[session.user.companyCurrency]
-      convertedAmount = data.amount * rate
+      );
+      const exchangeData = await exchangeResponse.json();
+      const rate = exchangeData.rates[session.user.companyCurrency];
+      convertedAmount = data.amount * rate;
     }
 
     // Create expense
@@ -197,17 +191,17 @@ export async function POST(req: NextRequest) {
         userId: session.user.id,
         companyId: session.user.companyId,
       },
-    })
+    });
 
     // Get user's manager
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
       include: {
-        manager: true
-      }
-    })
+        manager: true,
+      },
+    });
 
-    let currentSequence = 1
+    let currentSequence = 1;
 
     // Step 1: Create approval request for manager if exists and isManagerApprover is true
     if (user?.manager && user.manager.isManagerApprover) {
@@ -216,9 +210,9 @@ export async function POST(req: NextRequest) {
           expenseId: expense.id,
           approverId: user.managerId!,
           sequence: currentSequence,
-        }
-      })
-      currentSequence++
+        },
+      });
+      currentSequence++;
     }
 
     // Step 2: Get active approval rules for this company
@@ -230,21 +224,21 @@ export async function POST(req: NextRequest) {
       include: {
         approvers: {
           include: {
-            user: true
+            user: true,
           },
           orderBy: {
-            sequence: 'asc'
-          }
-        }
+            sequence: "asc",
+          },
+        },
       },
       orderBy: {
-        sequence: 'asc'
-      }
-    })
+        sequence: "asc",
+      },
+    });
 
     // Step 3: Process each approval rule
     for (const rule of approvalRules) {
-      if (rule.ruleType === 'PERCENTAGE') {
+      if (rule.ruleType === "PERCENTAGE") {
         // For percentage rules, create approval requests for all approvers at the same sequence
         for (const approver of rule.approvers) {
           await prisma.approvalRequest.create({
@@ -252,24 +246,26 @@ export async function POST(req: NextRequest) {
               expenseId: expense.id,
               approverId: approver.userId,
               sequence: currentSequence,
-            }
-          })
+            },
+          });
         }
-        currentSequence++
-      } else if (rule.ruleType === 'SPECIFIC_APPROVER') {
+        currentSequence++;
+      } else if (rule.ruleType === "SPECIFIC_APPROVER") {
         // For specific approver rules, create approval requests for special approvers
-        const specialApprovers = rule.approvers.filter((a: any) => a.isSpecialApprover)
+        const specialApprovers = rule.approvers.filter(
+          (a: any) => a.isSpecialApprover
+        );
         for (const approver of specialApprovers) {
           await prisma.approvalRequest.create({
             data: {
               expenseId: expense.id,
               approverId: approver.userId,
               sequence: currentSequence,
-            }
-          })
+            },
+          });
         }
-        currentSequence++
-      } else if (rule.ruleType === 'HYBRID') {
+        currentSequence++;
+      } else if (rule.ruleType === "HYBRID") {
         // For hybrid rules, create approval requests for all approvers at the same sequence
         // The approval logic will handle both percentage and special approver conditions
         for (const approver of rule.approvers) {
@@ -278,26 +274,90 @@ export async function POST(req: NextRequest) {
               expenseId: expense.id,
               approverId: approver.userId,
               sequence: currentSequence,
-            }
-          })
+            },
+          });
         }
-        currentSequence++
+        currentSequence++;
       }
     }
 
-    return NextResponse.json(expense, { status: 201 })
+    return NextResponse.json(expense, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: error.errors },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: error.errors }, { status: 400 });
     }
 
-    console.error("Error creating expense:", error)
+    console.error("Error creating expense:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
-    )
+    );
+  }
+}
+
+// DELETE - Delete expense
+export async function DELETE(req: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(req.url);
+    const expenseId = searchParams.get("id");
+
+    if (!expenseId) {
+      return NextResponse.json(
+        { error: "Expense ID is required" },
+        { status: 400 }
+      );
+    }
+
+    // Find the expense
+    const expense = await prisma.expense.findUnique({
+      where: { id: expenseId },
+      include: {
+        approvalRequests: true,
+      },
+    });
+
+    if (!expense) {
+      return NextResponse.json({ error: "Expense not found" }, { status: 404 });
+    }
+
+    // Check if user owns the expense
+    if (expense.userId !== session.user.id) {
+      return NextResponse.json(
+        { error: "You can only delete your own expenses" },
+        { status: 403 }
+      );
+    }
+
+    // Only allow deletion of PENDING expenses (not yet approved/rejected)
+    if (expense.status !== "PENDING") {
+      return NextResponse.json(
+        { error: "Only pending expenses can be deleted" },
+        { status: 400 }
+      );
+    }
+
+    // Delete associated approval requests first (cascade)
+    await prisma.approvalRequest.deleteMany({
+      where: { expenseId: expense.id },
+    });
+
+    // Delete the expense
+    await prisma.expense.delete({
+      where: { id: expense.id },
+    });
+
+    return NextResponse.json({ message: "Expense deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting expense:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }

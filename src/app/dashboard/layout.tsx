@@ -9,7 +9,8 @@ import {
   Users, 
   Settings, 
   CheckSquare,
-  LogOut 
+  LogOut,
+  Workflow
 } from 'lucide-react'
 
 export default function DashboardLayout({
@@ -25,8 +26,8 @@ export default function DashboardLayout({
     { name: 'Expenses', href: '/dashboard/expenses', icon: Receipt },
     { name: 'Approvals', href: '/dashboard/approvals', icon: CheckSquare, roles: ['MANAGER', 'ADMIN'] },
     { name: 'Users', href: '/dashboard/users', icon: Users, roles: ['ADMIN'] },
-    { name: 'Approval Rules', href: '/dashboard/approval-rules', icon: Settings, roles: ['ADMIN'] },
-    { name: 'Settings', href: '/dashboard/settings', icon: Settings },
+    { name: 'Approval Rules', href: '/dashboard/approval-rules', icon: Workflow, roles: ['ADMIN'] },
+    { name: 'Settings', href: '/dashboard/settings', icon: Settings, roles: ['ADMIN'] },
   ]
 
   const filteredNavigation = navigation.filter(
