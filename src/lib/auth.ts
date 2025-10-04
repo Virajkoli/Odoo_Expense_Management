@@ -20,8 +20,18 @@ export const authOptions: NextAuthOptions = {
           where: {
             email: credentials.email,
           },
-          include: {
-            company: true,
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            password: true,
+            role: true,
+            companyId: true,
+            company: {
+              select: {
+                currency: true,
+              },
+            },
           },
         });
 
@@ -67,21 +77,19 @@ export const authOptions: NextAuthOptions = {
       }
       return session;
     },
-    async signOut() {
-      return true;
-    },
   },
   pages: {
     signIn: "/auth/signin",
     signOut: "/auth/signin",
   },
-  events: {
-    async signOut() {
-      // Perform any cleanup here if needed
-    },
-  },
   session: {
     strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30 days
   },
+  jwt: {
+    maxAge: 30 * 24 * 60 * 60, // 30 days
+  },
+  // Optimize for performance
+  useSecureCookies: process.env.NODE_ENV === "production",
   secret: process.env.NEXTAUTH_SECRET,
 };

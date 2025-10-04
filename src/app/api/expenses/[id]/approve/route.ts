@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { NotificationService } from "@/lib/notifications"
 import { z } from "zod"
 
 const approvalSchema = z.object({
@@ -268,6 +269,13 @@ export async function PATCH(
         }
       })
 
+      // Send rejection notification
+      await NotificationService.notifyExpenseRejection(
+        params.id,
+        session.user.id,
+        comments
+      )
+
       return NextResponse.json({
         message: "Expense rejected successfully",
         status: 'REJECTED',
@@ -289,6 +297,13 @@ export async function PATCH(
           rejectionReason: 'Approval conditions not met',
         }
       })
+
+      // Send rejection notification
+      await NotificationService.notifyExpenseRejection(
+        params.id,
+        session.user.id,
+        'Approval conditions not met'
+      )
 
       return NextResponse.json({
         message: "Expense rejected - approval conditions not met",
@@ -316,6 +331,12 @@ export async function PATCH(
             status: 'APPROVED',
           }
         })
+
+        // Send approval notification
+        await NotificationService.notifyExpenseApproval(
+          params.id,
+          session.user.id
+        )
 
         return NextResponse.json({
           message: "Expense approved successfully",

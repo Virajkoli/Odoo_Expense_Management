@@ -34,6 +34,13 @@ enum ApprovalRuleType {
   HYBRID
 }
 
+enum NotificationType {
+  INFO
+  SUCCESS
+  WARNING
+  ERROR
+}
+
 model Company {
   id        String   @id @default(cuid())
   name      String
@@ -69,6 +76,7 @@ model User {
   expenses          Expense[]
   approvalRequests  ApprovalRequest[]
   approvalRuleApprovers ApprovalRuleApprover[]
+  notifications     Notification[]
 
   @@index([companyId])
   @@index([managerId])
@@ -96,6 +104,7 @@ model Expense {
   user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   company          Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
   approvalRequests ApprovalRequest[]
+  notifications    Notification[]
 
   @@index([userId])
   @@index([companyId])
@@ -155,4 +164,25 @@ model ApprovalRequest {
   @@index([approverId])
   @@index([status])
   @@map("approval_requests")
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  title     String
+  message   String
+  type      NotificationType @default(INFO)
+  read      Boolean          @default(false)
+  readAt    DateTime?
+  expenseId String?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expense Expense? @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([read])
+  @@index([createdAt])
+  @@map("notifications")
 }

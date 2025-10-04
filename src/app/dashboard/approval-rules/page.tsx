@@ -266,7 +266,7 @@ function ApprovalRuleModal({
               required
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm px-3 py-2 border"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm px-3 py-2 border bg-white text-gray-900 font-medium placeholder:text-gray-500"
               placeholder="e.g., Standard Expense Approval"
             />
           </div>
@@ -280,7 +280,7 @@ function ApprovalRuleModal({
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               rows={2}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm px-3 py-2 border"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm px-3 py-2 border bg-white text-gray-900 font-medium placeholder:text-gray-500"
               placeholder="Describe when this rule applies..."
             />
           </div>
@@ -291,7 +291,7 @@ function ApprovalRuleModal({
             <select
               value={formData.ruleType}
               onChange={(e) => setFormData({ ...formData, ruleType: e.target.value })}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm px-3 py-2 border"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm px-3 py-2 border bg-white text-gray-900 font-medium"
             >
               <option value="PERCENTAGE">Percentage - Requires % of approvers</option>
               <option value="SPECIFIC_APPROVER">Specific Approver - Requires special approver</option>
@@ -314,7 +314,7 @@ function ApprovalRuleModal({
                 onChange={(e) =>
                   setFormData({ ...formData, percentage: parseInt(e.target.value) })
                 }
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm px-3 py-2 border"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm px-3 py-2 border bg-white text-gray-900 font-medium"
               />
               <p className="mt-1 text-xs text-gray-500">
                 Expense will be approved if {formData.percentage}% of selected approvers approve
@@ -333,7 +333,7 @@ function ApprovalRuleModal({
               onChange={(e) =>
                 setFormData({ ...formData, sequence: parseInt(e.target.value) })
               }
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm px-3 py-2 border"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm px-3 py-2 border bg-white text-gray-900 font-medium"
             />
             <p className="mt-1 text-xs text-gray-500">
               Lower numbers are processed first in multi-rule workflows
